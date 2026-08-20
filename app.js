@@ -1,5 +1,5 @@
-const COLS = 3;
-const ROWS = 4;
+let COLS = 3;
+let ROWS = 4;
 const IMAGE_SRC = "puzzle.jpg"; // replace this file with your portrait photo
 
 // Cubic bezier segments (unit space) forming one jigsaw edge knob.
@@ -105,6 +105,7 @@ async function startGame() {
   solved = false;
   document.getElementById("start-screen").classList.add("hidden");
   document.getElementById("win-screen").classList.add("hidden");
+  hintBtn.classList.remove("hidden", "active");
   buildGame(src);
   startTimer();
 }
@@ -136,7 +137,17 @@ function buildGame(src, keepState) {
   frame.style.top = layout.bt + "px";
   frame.style.width = layout.bw + "px";
   frame.style.height = layout.bh + "px";
+  frame.style.setProperty("--cols", COLS);
+  frame.style.setProperty("--rows", ROWS);
   area.appendChild(frame);
+
+  // ghost hint image (hidden unless toggled)
+  const ghost = document.createElement("img");
+  ghost.id = "ghost-img";
+  ghost.src = src;
+  ghost.alt = "";
+  ghost.draggable = false;
+  frame.appendChild(ghost);
 
   // random tab/blank directions for inner edges
   const hE = [], vE = [];
@@ -320,6 +331,23 @@ function stopTimer() {
 /* ---------- events ---------- */
 document.getElementById("start-btn").addEventListener("click", startGame);
 document.getElementById("again-btn").addEventListener("click", startGame);
+
+document.querySelectorAll(".diff-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".diff-btn").forEach((b) => b.classList.remove("selected"));
+    btn.classList.add("selected");
+    COLS = Number(btn.dataset.cols);
+    ROWS = Number(btn.dataset.rows);
+  });
+});
+
+const hintBtn = document.getElementById("hint-btn");
+hintBtn.addEventListener("click", () => {
+  const ghost = document.getElementById("ghost-img");
+  if (!ghost) return;
+  const on = ghost.classList.toggle("visible");
+  hintBtn.classList.toggle("active", on);
+});
 
 window.addEventListener("resize", () => {
   if (!layout || solved || !lastSrc) return;

@@ -9,7 +9,10 @@
 <body>
   <header>
     <h1>DoCW <span>Treasure Hunt</span></h1>
-    <div id="timer">00:00</div>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <button id="hint-btn" class="ghost-btn hidden" title="Toggle hint">👁 Hint</button>
+      <div id="timer">00:00</div>
+    </div>
   </header>
 
   <!-- Start screen -->
@@ -17,7 +20,12 @@
     <h2>🧩 The Jigsaw Gate</h2>
     <p>The portrait has been shattered.<br/>
        Drag each piece into its place on the template.</p>
-    <p class="hint">Solve it fast — every second counts!</p>
+    <p class="diff-label">Choose difficulty</p>
+    <div class="diff-row">
+      <button class="diff-btn selected" data-cols="3" data-rows="4">Easy<br><small>12 pieces</small></button>
+      <button class="diff-btn" data-cols="4" data-rows="5">Medium<br><small>20 pieces</small></button>
+      <button class="diff-btn" data-cols="5" data-rows="7">Hard<br><small>35 pieces</small></button>
+    </div>
     <button id="start-btn">Start Puzzle</button>
   </section>
 

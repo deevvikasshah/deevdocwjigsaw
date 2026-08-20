@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>DoCW Treasure Hunt — Jigsaw</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>DoCW <span>Treasure Hunt</span></h1>
+    <div id="timer">00:00</div>
+  </header>
+
+  <main>
+    <!-- Start screen -->
+    <section id="start-screen">
+      <h2>🧩 The Jigsaw Gate</h2>
+      <p>Reassemble the shattered portrait.<br/>
+         Tap one piece, then tap another to swap them.</p>
+      <p class="hint">Solve it fast — every second counts!</p>
+      <button id="start-btn">Start Puzzle</button>
+    </section>
+
+    <!-- Puzzle board -->
+    <section id="game-screen" class="hidden">
+      <div id="board"></div>
+    </section>
+
+    <!-- Win screen -->
+    <section id="win-screen" class="hidden">
+      <h2>🎉 Solved!</h2>
+      <p>Your time</p>
+      <div id="final-time">00:00</div>
+      <button id="again-btn">Play Again</button>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

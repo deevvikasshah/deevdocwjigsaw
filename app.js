@@ -12,6 +12,7 @@ const SEGS = [
   [0.66, 0.04, 0.80, 0.00, 1.00, 0.00],
 ];
 
+let lastSrc = null;
 let timerInterval = null;
 let startTime = 0;
 let solved = false;
@@ -110,32 +111,31 @@ async function startGame() {
 
 function computeLayout(area) {
   const W = area.clientWidth, H = area.clientHeight;
-  const bw = Math.min(W * 0.82, H * 0.58 * 0.75);
-  const bh = bw * ROWS / COLS;
+  const cw = Math.max(40, Math.round(Math.min(W * 0.82, H * 0.58 * 0.75) / COLS));
+  const ch = Math.max(40, Math.round(cw * ROWS / COLS));
+  const bw = cw * COLS, bh = ch * ROWS;
   return {
-    bw, bh,
-    bl: (W - bw) / 2,
-    bt: Math.max(10, H * 0.025),
-    cw: bw / COLS,
-    ch: bh / ROWS,
-    T: 0.8 * Math.min(bw / COLS, bh / ROWS),
+    bw, bh, cw, ch,
+    bl: Math.round((W - bw) / 2),
+    bt: Math.round(Math.max(10, H * 0.03)),
+    T: 0.8 * Math.min(cw, ch),
   };
 }
 
 function buildGame(src, keepState) {
+  lastSrc = src;
   const area = document.getElementById("game-area");
   area.innerHTML = "";
   layout = computeLayout(area);
   layout.pad = Math.ceil(layout.T * 0.28);
 
-  // template with faint ghost of the photo
+  // empty template with a subtle grid (no hints of the picture)
   const frame = document.createElement("div");
   frame.id = "board-frame";
   frame.style.left = layout.bl + "px";
   frame.style.top = layout.bt + "px";
   frame.style.width = layout.bw + "px";
   frame.style.height = layout.bh + "px";
-  frame.innerHTML = `<img src="${src}" alt="" draggable="false">`;
   area.appendChild(frame);
 
   // random tab/blank directions for inner edges
@@ -198,11 +198,21 @@ function buildGame(src, keepState) {
 function homeX(p) { return layout.bl + p.col * layout.cw - layout.pad; }
 function homeY(p) { return layout.bt + p.row * layout.ch - layout.pad; }
 
-function placeAtHome(p) {
+function placeAtHome(p, animate) {
   p.locked = true;
   p.el.classList.add("locked");
-  p.el.style.left = homeX(p) + "px";
-  p.el.style.top = homeY(p) + "px";
+  if (animate) {
+    const el = p.el;
+    el.style.transition = "left 0.18s ease-out, top 0.18s ease-out";
+    requestAnimationFrame(() => {
+      el.style.left = homeX(p) + "px";
+      el.style.top = homeY(p) + "px";
+      setTimeout(() => { el.style.transition = ""; }, 220);
+    });
+  } else {
+    p.el.style.left = homeX(p) + "px";
+    p.el.style.top = homeY(p) + "px";
+  }
   p.el.style.zIndex = 1;
 }
 
@@ -261,7 +271,7 @@ function attachDrag(p) {
       const dy = parseFloat(el.style.top) - homeY(p);
       const snapDist = Math.min(layout.cw, layout.ch) * 0.38;
       if (Math.hypot(dx, dy) < snapDist) {
-        placeAtHome(p);
+        placeAtHome(p, true);
         el.classList.add("pop");
         setTimeout(() => el.classList.remove("pop"), 320);
         checkWin();
@@ -312,9 +322,8 @@ document.getElementById("start-btn").addEventListener("click", startGame);
 document.getElementById("again-btn").addEventListener("click", startGame);
 
 window.addEventListener("resize", () => {
-  if (!layout || solved) return;
-  const src = document.querySelector("#board-frame img")?.src;
-  if (src) buildGame(src, true);
+  if (!layout || solved || !lastSrc) return;
+  buildGame(lastSrc, true);
 });
 
 document.addEventListener("contextmenu", (e) => {

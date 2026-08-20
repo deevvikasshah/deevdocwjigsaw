@@ -12,29 +12,25 @@
     <div id="timer">00:00</div>
   </header>
 
-  <main>
-    <!-- Start screen -->
-    <section id="start-screen">
-      <h2>🧩 The Jigsaw Gate</h2>
-      <p>Reassemble the shattered portrait.<br/>
-         Tap one piece, then tap another to swap them.</p>
-      <p class="hint">Solve it fast — every second counts!</p>
-      <button id="start-btn">Start Puzzle</button>
-    </section>
+  <!-- Start screen -->
+  <section id="start-screen" class="overlay">
+    <h2>🧩 The Jigsaw Gate</h2>
+    <p>The portrait has been shattered.<br/>
+       Drag each piece into its place on the template.</p>
+    <p class="hint">Solve it fast — every second counts!</p>
+    <button id="start-btn">Start Puzzle</button>
+  </section>
 
-    <!-- Puzzle board -->
-    <section id="game-screen" class="hidden">
-      <div id="board"></div>
-    </section>
+  <!-- Game area -->
+  <main id="game-area"></main>
 
-    <!-- Win screen -->
-    <section id="win-screen" class="hidden">
-      <h2>🎉 Solved!</h2>
-      <p>Your time</p>
-      <div id="final-time">00:00</div>
-      <button id="again-btn">Play Again</button>
-    </section>
-  </main>
+  <!-- Win screen -->
+  <section id="win-screen" class="overlay hidden">
+    <h2>🎉 Solved!</h2>
+    <p>Your time</p>
+    <div id="final-time">00:00</div>
+    <button id="again-btn">Play Again</button>
+  </section>
 
   <script src="app.js"></script>
 </body>

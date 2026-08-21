@@ -90,13 +90,17 @@ function piecePath(row, col, cw, ch, hE, vE) {
   const leftS = col === 0 ? 0 : vE[row][col - 1];
   const rightS = col === COLS - 1 ? 0 : vE[row][col];
 
+  // NOTE: for bottom/left edges the coordinates are given in natural
+  // L->R / T->B order and reversed=true flips the chain to match the
+  // pen position — keeping the curve geometrically identical to the
+  // neighbouring piece's edge so tabs and blanks interlock exactly.
   edgeSegmentsH(0, 0, cw, topS, false).forEach(
     (s) => { d += `C ${s[0]} ${s[1]} ${s[2]} ${s[3]} ${s[4]} ${s[5]} `; });
   edgeSegmentsV(cw, 0, ch, rightS, false).forEach(
     (s) => { d += `C ${s[0]} ${s[1]} ${s[2]} ${s[3]} ${s[4]} ${s[5]} `; });
-  edgeSegmentsH(cw, ch, 0, botS, true).forEach(
+  edgeSegmentsH(0, ch, cw, botS, true).forEach(
     (s) => { d += `C ${s[0]} ${s[1]} ${s[2]} ${s[3]} ${s[4]} ${s[5]} `; });
-  edgeSegmentsV(0, ch, 0, leftS, true).forEach(
+  edgeSegmentsV(0, 0, ch, leftS, true).forEach(
     (s) => { d += `C ${s[0]} ${s[1]} ${s[2]} ${s[3]} ${s[4]} ${s[5]} `; });
   return d + "Z";
 }
@@ -186,7 +190,12 @@ function buildGame(src, keepState) {
       clip.id = `clip-${r}-${c}-${Math.random().toString(36).slice(2, 7)}`;
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
       path.setAttribute("d", piecePath(r, c, layout.cw, layout.ch, hE, vE));
-      path.setAttribute("transform", `translate(${layout.pad},${layout.pad})`);
+      // tiny 1.5% expansion around the piece centre hides anti-aliasing seams
+      const cx = layout.cw / 2, cy = layout.ch / 2;
+      path.setAttribute(
+        "transform",
+        `translate(${layout.pad + cx},${layout.pad + cy}) scale(1.015) translate(${-cx},${-cy})`
+      );
       clip.appendChild(path);
       svg.appendChild(clip);
 

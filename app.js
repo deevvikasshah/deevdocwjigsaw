@@ -138,7 +138,7 @@ function buildGame(src, keepState) {
   const area = document.getElementById("game-area");
   area.innerHTML = "";
   layout = computeLayout(area);
-  layout.pad = Math.ceil(layout.T * 0.28);
+  layout.pad = Math.ceil(layout.T * 0.4); // generous margin: knobs can never touch the SVG edge
 
   // empty template with a subtle grid (no hints of the picture)
   const frame = document.createElement("div");
@@ -185,11 +185,11 @@ function buildGame(src, keepState) {
       clip.id = `clip-${r}-${c}-${Math.random().toString(36).slice(2, 7)}`;
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
       path.setAttribute("d", piecePath(r, c, layout.cw, layout.ch, hE, vE));
-      // tiny 1.5% expansion around the piece centre hides anti-aliasing seams
+      // tiny ~1% expansion around the piece centre hides anti-aliasing seams
       const cx = layout.cw / 2, cy = layout.ch / 2;
       path.setAttribute(
         "transform",
-        `translate(${layout.pad + cx},${layout.pad + cy}) scale(1.015) translate(${-cx},${-cy})`
+        `translate(${layout.pad + cx},${layout.pad + cy}) scale(1.01) translate(${-cx},${-cy})`
       );
       clip.appendChild(path);
       svg.appendChild(clip);
@@ -372,10 +372,12 @@ function attachDrag(p) {
     const startX = e.clientX, startY = e.clientY;
 
     const move = (ev) => {
+      // keep the whole piece body on screen (only transparent padding may
+      // go past the edge) so nothing ever appears cut off while dragging
       let nx = ox + ev.clientX - startX;
       let ny = oy + ev.clientY - startY;
-      nx = Math.max(-pw * 0.3, Math.min(nx, area.clientWidth - pw * 0.7));
-      ny = Math.max(-ph * 0.3, Math.min(ny, area.clientHeight - ph * 0.7));
+      nx = Math.max(-layout.pad, Math.min(nx, area.clientWidth - pw + layout.pad));
+      ny = Math.max(-layout.pad, Math.min(ny, area.clientHeight - ph + layout.pad));
       el.style.left = nx + "px";
       el.style.top = ny + "px";
     };

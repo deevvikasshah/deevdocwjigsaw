@@ -73,6 +73,7 @@ h1 span { color: #e8930c; }
 .piece {
   position: absolute;
   touch-action: none;
+  overflow: visible; /* never clip knob tips at the SVG viewport */
   filter: drop-shadow(0 4px 6px rgba(30,40,60,0.35));
   cursor: grab;
 }

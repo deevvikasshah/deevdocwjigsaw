@@ -16,8 +16,10 @@ let lastSrc = null;
 let timerInterval = null;
 let startTime = 0;
 let solved = false;
-let pieces = []; // {el,row,col,locked}
-let layout = null; // {bl,bt,bw,bh,cw,ch,pad,T}
+let pieces = [];      // {el,row,col,locked,traySlot}
+let layout = null;    // {bl,bt,bw,bh,cw,ch,pad,T}
+let trayEl = null;
+let traySlots = [];   // {x,y,occupied}
 
 /* ---------- image ---------- */
 function loadImage() {
@@ -112,13 +114,14 @@ async function startGame() {
 
 function computeLayout(area) {
   const W = area.clientWidth, H = area.clientHeight;
-  const cw = Math.max(40, Math.round(Math.min(W * 0.82, H * 0.58 * 0.75) / COLS));
-  const ch = Math.max(40, Math.round(cw * ROWS / COLS));
+  // board takes upper ~55% of the play field; tray lives below it
+  const ch = Math.max(36, Math.round(H * 0.55 / ROWS));
+  const cw = Math.max(36, Math.round(Math.min(ch * COLS / ROWS, W * 0.88 / COLS)));
   const bw = cw * COLS, bh = ch * ROWS;
   return {
     bw, bh, cw, ch,
     bl: Math.round((W - bw) / 2),
-    bt: Math.round(Math.max(10, H * 0.03)),
+    bt: Math.round(Math.max(8, H * 0.02)),
     T: 0.8 * Math.min(cw, ch),
   };
 }
@@ -150,6 +153,8 @@ function buildGame(src, keepState) {
   frame.appendChild(ghost);
 
   // random tab/blank directions for inner edges
+  // (border edges stay flat: corners have 2 inner engravings,
+  //  boundary pieces 3, middle pieces all 4)
   const hE = [], vE = [];
   for (let r = 0; r <= ROWS; r++) {
     hE[r] = [];
@@ -195,22 +200,123 @@ function buildGame(src, keepState) {
       img.setAttribute("preserveAspectRatio", "none");
       svg.appendChild(img);
 
-      const piece = { el: svg, row: r, col: c, locked };
-      area.appendChild(svg);
+      const piece = { el: svg, row: r, col: c, locked, traySlot: null };
       pieces.push(piece);
-
-      if (locked) placeAtHome(piece);
-      else scatterPiece(piece);
+      if (locked) {
+        area.appendChild(svg);
+        placeAtHome(piece);
+      }
       attachDrag(piece);
     }
   }
+
+  buildTray(area);
 }
 
+/* ---------- tray (two ordered columns below the template) ---------- */
+function buildTray(area) {
+  const trayTop = layout.bt + layout.bh + 10;
+  trayEl = document.createElement("div");
+  trayEl.id = "tray";
+  trayEl.style.top = trayTop + "px";
+  area.appendChild(trayEl);
+
+  const pw = layout.cw + layout.pad * 2;
+  const ph = layout.ch + layout.pad * 2;
+  const gap = 10;
+
+  const loose = pieces.filter((p) => !p.locked);
+  // jumbled assignment into neat slots
+  const order = loose.map((_, i) => i);
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+
+  traySlots = loose.map((_, i) => {
+    const col = i % 2, row = Math.floor(i / 2);
+    const totalW = 2 * pw + gap;
+    const startX = Math.max(6, Math.floor((trayEl.clientWidth - totalW) / 2));
+    return { x: startX + col * (pw + gap), y: 8 + row * (ph + gap), occupied: false };
+  });
+
+  // spacer gives the tray its scrollable height
+  const rows = Math.ceil(loose.length / 2);
+  const spacer = document.createElement("div");
+  spacer.style.height = (rows * (ph + gap) + 16) + "px";
+  trayEl.appendChild(spacer);
+
+  order.forEach((pieceIdx, slotIdx) => placeInTray(loose[pieceIdx], slotIdx));
+}
+
+function slotGeom(i) {
+  const pw = layout.cw + layout.pad * 2;
+  const ph = layout.ch + layout.pad * 2;
+  const gap = 10;
+  const col = i % 2, row = Math.floor(i / 2);
+  const totalW = 2 * pw + gap;
+  const startX = Math.max(6, Math.floor((trayEl.clientWidth - totalW) / 2));
+  return { x: startX + col * (pw + gap), y: 8 + row * (ph + gap) };
+}
+
+function placeInTray(p, slotIdx) {
+  const s = slotIdx ?? traySlots.findIndex((t) => !t.occupied);
+  if (s < 0) return;
+  traySlots[s].occupied = true;
+  p.traySlot = s;
+  const g = slotGeom(s);
+  trayEl.appendChild(p.el);
+  p.el.classList.remove("locked", "dragging");
+  p.el.style.transition = "";
+  p.el.style.zIndex = 5;
+  p.el.style.left = g.x + "px";
+  p.el.style.top = g.y + "px";
+}
+
+function freeTraySlot(p) {
+  if (p.traySlot != null && traySlots[p.traySlot]) traySlots[p.traySlot].occupied = false;
+  p.traySlot = null;
+}
+
+function returnToTray(p) {
+  const area = document.getElementById("game-area");
+  const el = p.el;
+  const areaRect = area.getBoundingClientRect();
+  const trayRect = trayEl.getBoundingClientRect();
+
+  // current visual position expressed in tray content coordinates
+  const curX = parseFloat(el.style.left) + areaRect.left - trayRect.left;
+  const curY = parseFloat(el.style.top) + areaRect.top - trayRect.top + trayEl.scrollTop;
+
+  const s = traySlots.findIndex((t) => !t.occupied);
+  if (s < 0) { placeInTray(p, undefined); return; }
+  traySlots[s].occupied = true;
+  p.traySlot = s;
+  const g = slotGeom(s);
+
+  trayEl.appendChild(el);
+  el.classList.remove("dragging");
+  el.style.transition = "none";
+  el.style.left = curX + "px";
+  el.style.top = curY + "px";
+  el.style.zIndex = 50;
+
+  requestAnimationFrame(() => {
+    el.style.transition = "left 0.28s ease, top 0.28s ease";
+    el.style.left = g.x + "px";
+    el.style.top = g.y + "px";
+    setTimeout(() => { el.style.transition = ""; }, 320);
+    el.style.zIndex = 5;
+  });
+}
+
+/* ---------- positioning ---------- */
 function homeX(p) { return layout.bl + p.col * layout.cw - layout.pad; }
 function homeY(p) { return layout.bt + p.row * layout.ch - layout.pad; }
 
 function placeAtHome(p, animate) {
   p.locked = true;
+  freeTraySlot(p);
   p.el.classList.add("locked");
   if (animate) {
     const el = p.el;
@@ -227,28 +333,6 @@ function placeAtHome(p, animate) {
   p.el.style.zIndex = 1;
 }
 
-function scatterPiece(p) {
-  const area = document.getElementById("game-area");
-  const W = area.clientWidth, H = area.clientHeight;
-  const pw = layout.cw + layout.pad * 2;
-  const ph = layout.ch + layout.pad * 2;
-  const m = 6;
-  let x, y, ok = false;
-
-  for (let i = 0; i < 300 && !ok; i++) {
-    x = m + Math.random() * (W - pw - 2 * m);
-    y = m + Math.random() * (H - ph - 2 * m);
-    const cx = x + pw / 2, cy = y + ph / 2;
-    const insideBoard =
-      cx > layout.bl - 10 && cx < layout.bl + layout.bw + 10 &&
-      cy > layout.bt - 10 && cy < layout.bt + layout.bh + 10;
-    ok = !insideBoard || i > 200; // allow overlap as last resort
-  }
-  p.el.style.left = x + "px";
-  p.el.style.top = y + "px";
-  p.el.style.zIndex = 10 + Math.floor(Math.random() * 20);
-}
-
 /* ---------- dragging ---------- */
 function attachDrag(p) {
   const el = p.el;
@@ -258,13 +342,32 @@ function attachDrag(p) {
     el.setPointerCapture(e.pointerId);
     el.classList.add("dragging");
     el.style.zIndex = 100;
+
+    const area = document.getElementById("game-area");
+    const pw = layout.cw + layout.pad * 2;
+    const ph = layout.ch + layout.pad * 2;
+
+    let ox, oy;
+    if (el.parentElement === trayEl) {
+      // lift the piece out of the scrollable tray into the play field
+      const areaRect = area.getBoundingClientRect();
+      const trayRect = trayEl.getBoundingClientRect();
+      const lx = parseFloat(el.style.left), ly = parseFloat(el.style.top);
+      ox = trayRect.left + lx - areaRect.left;
+      oy = trayRect.top + ly - trayEl.scrollTop - areaRect.top;
+      freeTraySlot(p);
+      area.appendChild(el);
+    } else {
+      ox = parseFloat(el.style.left);
+      oy = parseFloat(el.style.top);
+    }
+    el.style.transition = "none";
+    el.style.left = ox + "px";
+    el.style.top = oy + "px";
+
     const startX = e.clientX, startY = e.clientY;
-    const ox = parseFloat(el.style.left), oy = parseFloat(el.style.top);
 
     const move = (ev) => {
-      const area = document.getElementById("game-area");
-      const pw = layout.cw + layout.pad * 2;
-      const ph = layout.ch + layout.pad * 2;
       let nx = ox + ev.clientX - startX;
       let ny = oy + ev.clientY - startY;
       nx = Math.max(-pw * 0.3, Math.min(nx, area.clientWidth - pw * 0.7));
@@ -273,7 +376,7 @@ function attachDrag(p) {
       el.style.top = ny + "px";
     };
 
-    const up = (ev) => {
+    const up = () => {
       el.removeEventListener("pointermove", move);
       el.removeEventListener("pointerup", up);
       el.removeEventListener("pointercancel", up);
@@ -287,7 +390,7 @@ function attachDrag(p) {
         setTimeout(() => el.classList.remove("pop"), 320);
         checkWin();
       } else {
-        el.style.zIndex = 10 + Math.floor(Math.random() * 20);
+        returnToTray(p);
       }
     };
 

@@ -66,6 +66,18 @@ h1 span { color: #ffc857; }
 }
 #ghost-img.visible { opacity: 0.22; }
 
+/* Scrollable piece tray below the template */
+#tray {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* Puzzle pieces */
 .piece {
   position: absolute;

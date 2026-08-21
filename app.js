@@ -16,6 +16,7 @@ let lastSrc = null;
 let timerInterval = null;
 let startTime = 0;
 let solved = false;
+let hintsLeft = 2;
 let pieces = [];      // {el,row,col,locked,traySlot}
 let layout = null;    // {bl,bt,bw,bh,cw,ch,pad,T}
 let trayEl = null;
@@ -109,9 +110,11 @@ function piecePath(row, col, cw, ch, hE, vE) {
 async function startGame() {
   const src = await loadImage();
   solved = false;
+  hintsLeft = 2;
+  updateHintButton();
   document.getElementById("start-screen").classList.add("hidden");
   document.getElementById("win-screen").classList.add("hidden");
-  hintBtn.classList.remove("hidden", "active");
+  hintBtn.classList.remove("hidden");
   buildGame(src);
   startTimer();
 }
@@ -147,14 +150,6 @@ function buildGame(src, keepState) {
   frame.style.setProperty("--cols", COLS);
   frame.style.setProperty("--rows", ROWS);
   area.appendChild(frame);
-
-  // ghost hint image (hidden unless toggled)
-  const ghost = document.createElement("img");
-  ghost.id = "ghost-img";
-  ghost.src = src;
-  ghost.alt = "";
-  ghost.draggable = false;
-  frame.appendChild(ghost);
 
   // random tab/blank directions for inner edges
   // (border edges stay flat: corners have 2 inner engravings,
@@ -454,12 +449,46 @@ document.querySelectorAll(".diff-btn").forEach((btn) => {
 });
 
 const hintBtn = document.getElementById("hint-btn");
-hintBtn.addEventListener("click", () => {
-  const ghost = document.getElementById("ghost-img");
-  if (!ghost) return;
-  const on = ghost.classList.toggle("visible");
-  hintBtn.classList.toggle("active", on);
-});
+
+function updateHintButton() {
+  hintBtn.textContent = `👁 ${hintsLeft}`;
+  hintBtn.classList.toggle("disabled", hintsLeft <= 0);
+}
+
+function useHint() {
+  if (hintsLeft <= 0 || solved) return;
+  const loose = pieces.filter((p) => !p.locked);
+  if (!loose.length) return;
+  hintsLeft--;
+  updateHintButton();
+
+  const p = loose[Math.floor(Math.random() * loose.length)];
+
+  // ghost preview of this piece at its correct spot on the template
+  const clone = p.el.cloneNode(true);
+  const clipEl = clone.querySelector("clipPath");
+  if (clipEl) {
+    const nid = clipEl.id + "-h";
+    clipEl.id = nid;
+    clone.querySelector("image").setAttribute("clip-path", `url(#${nid})`);
+  }
+  clone.classList.remove("piece");
+  clone.classList.add("piece", "hint-preview");
+  clone.style.left = homeX(p) + "px";
+  clone.style.top = homeY(p) + "px";
+  clone.style.zIndex = 40;
+  document.getElementById("game-area").appendChild(clone);
+
+  // glow the piece in the tray so the player can find it
+  p.el.classList.add("hint-glow");
+
+  setTimeout(() => {
+    clone.remove();
+    p.el.classList.remove("hint-glow");
+  }, 3000);
+}
+
+hintBtn.addEventListener("click", useHint);
 
 window.addEventListener("resize", () => {
   if (!layout || solved || !lastSrc) return;
